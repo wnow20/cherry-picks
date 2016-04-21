@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# 初始化
+targetBranch=$1
+start=$2
+end=$3 #如果没有这读到最新
+currentBranch=$(git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
+
+# 切换到目标分支
+git checkout $targetBranch
+
+echo start proccess commit message...
+
+rawList=$(git log | grep '^commit' | sed '1,$s/commit//')
+
+startIndex=$(echo "$rawList" | sed -n "/$start/=" )
+
+# 如果end不为空，取得结束的偏移量，否则默认为1，也就是最新
+if [ -n "$end" ]; then
+    endIndex=$(echo "$rawList" | sed -n "/$end/=")
+else
+    endIndex=1
+fi
+
+# 取得需要cherry-pick的区间
+list=$(echo "$rawList" | head -$startIndex | tail +$endIndex)
+
+## 倒序
+list=$(echo "$list" |sed '1!G;h;$!d')
+
+
+echo '待cherry-pick的有：'
+echo list:
+echo "$list"
+echo
+
+# 切换回当前分支
+git checkout $currentBranch
+
+for i in "$list"; do
+    git cherry-pick $i
+done
+
+echo '完成'
+exit 0
